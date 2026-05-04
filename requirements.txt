@@ -1,0 +1,5 @@
+sounddevice
+pyaudio 
+textual
+textual-dev
+numpy

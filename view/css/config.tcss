@@ -1,0 +1,12 @@
+Tabs { 
+    dock: top; 
+}
+RichLog {
+        height: 1fr;
+        border: none;
+        padding: 0 1;
+        color: green;
+        margin: 5;
+        overflow-x: hidden;
+        overflow-y: auto;
+}

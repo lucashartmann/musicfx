@@ -1,0 +1,1 @@
+fazer textarea para mostrar prints
