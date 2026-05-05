@@ -8,5 +8,4 @@ class Pedal:
         self.intensidade = valor
     
     def processar(self, audio_data):
-        """Processa o áudio. Override em subclasses."""
         return audio_data

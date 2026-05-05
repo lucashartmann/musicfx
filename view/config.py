@@ -1,6 +1,6 @@
 import sys
 from textual.screen import Screen
-from textual.widgets import RichLog, Tabs, Tab
+from textual.widgets import Button, RichLog, Tabs, Tab
 from textual.app import App, ComposeResult
 
 
@@ -31,6 +31,16 @@ class ConfigScreen(Screen):
             id="tabs"
         )
         yield RichLog(id="log")
+        yield Button("📋 Copiar Log", id="btn_copy", variant="primary")
+        
+    def on_button_pressed(self, event):
+        if event.button.id == "btn_copy":
+            log = self.query_one(RichLog)
+            content = "\n".join(
+                strip.text for strip in log.lines
+            )
+            self.app.copy_to_clipboard(content)
+            self.notify("Log copiado para a área de transferência!", timeout=3)
 
     def on_mount(self) -> None:
         log = self.query_one(RichLog)
