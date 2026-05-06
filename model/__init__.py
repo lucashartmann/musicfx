@@ -15,10 +15,13 @@ class Init:
     marshall_plexi_super_lead_1959 = marshall_plexi_super_lead_1959.MarshallPlexiSuperLead1959()
     banco = banco.Banco()
 
-    def salvar_pedais(self):
-        for pedal in self.audio.get_pedais():
-            if not self.banco.tipo_is_cadastrado(pedal.tipo):
-                self.banco.adicionar_pedal(pedal)
-            else:
-                self.banco.atualizar_pedal(pedal)
-        self.banco.conexao.commit()
+    
+    audio.add_pedal(boss_distortion_ds12)
+    audio.add_pedal(boss_ns2_noise_suppressor)
+    audio.add_pedal(klon_centaur)
+    audio.add_pedal(boss_ce5_chorus)
+    audio.add_pedal(boss_dd3_delay)
+    audio.add_pedal(boss_rv6_reverb)
+
+    audio.add_amp(marshall_plexi_super_lead_1959)
+

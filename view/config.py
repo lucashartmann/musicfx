@@ -1,4 +1,5 @@
 import sys
+from textual.containers import Center
 from textual.screen import Screen
 from textual.widgets import Button, RichLog, Tabs, Tab
 from textual.app import App, ComposeResult
@@ -27,7 +28,8 @@ class ConfigScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Tabs(Tab("Inicio", id="tab_inicio"), Tab("Configurações", id="tab_configuracoes"), Tab("Equipamentos", id="tab_equipamentos"), id="tabs", active="tab_configuracoes")
         yield RichLog(id="log")
-        yield Button("Copiar Log", id="btn_copy", variant="primary")
+        with Center():
+            yield Button("Copiar Log", id="btn_copy", variant="primary")
         
     def on_button_pressed(self, event):
         if event.button.id == "btn_copy":

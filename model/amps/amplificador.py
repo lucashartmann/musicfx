@@ -7,13 +7,16 @@ class Amplificador(ABC):
     def __init__(self, nome: str, sample_rate: int = 48000):
         self.nome = nome
         self.sample_rate = sample_rate
-        self.ativo = True
+        self.ativo = False
         self.volume = 0.5
         self.bass = 0.5
         self.mid = 0.5
         self.treble = 0.5
         self.presence = 0.5
         self.gain = 0.5
+        
+    def get_nome(self):
+        return self.nome
 
     def set_gain(self, valor: float):
         self.gain = float(np.clip(valor, 0.0, 1.0))

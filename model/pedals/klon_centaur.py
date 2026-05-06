@@ -1,5 +1,5 @@
 import numpy as np
-from .pedal import Pedal
+from .pedal import Pedal, TipoPedal
 
 
 class KlonCentaur(Pedal):
@@ -8,9 +8,11 @@ class KlonCentaur(Pedal):
         super().__init__("Klon Centaur")
         self.sample_rate = sample_rate
         self.gain = 0.5
-        self.tom = 0.5
-        self.volume = 0.7
+        self.treble = 0.5
+        self.output = 0.7
         self.intensidade = self.gain
+        self.tom = self.treble
+        self.volume = self.output
         self._Vref = 1.0
         self._buf_z = np.zeros(1)
         self._mh_z = np.zeros(2)
@@ -20,16 +22,25 @@ class KlonCentaur(Pedal):
         self._last_tom = -1
         self._tone_b = None
         self._tone_a = None
+        self.tipo = TipoPedal.OVERDRIVE
 
     def set_intensidade(self, valor: float):
         self.intensidade = float(np.clip(valor, 0.0, 1.0))
         self.gain = self.intensidade
 
+    def set_treble(self, valor: float):
+        self.treble = float(np.clip(valor, 0.0, 1.0))
+        self.tom = self.treble
+
     def set_tom(self, valor: float):
-        self.tom = float(np.clip(valor, 0.0, 1.0))
+        self.set_treble(valor)
 
     def set_volume(self, valor: float):
-        self.volume = float(np.clip(valor, 0.0, 1.0))
+        self.output = float(np.clip(valor, 0.0, 1.0))
+        self.volume = self.output
+
+    def set_output(self, valor: float):
+        self.set_volume(valor)
 
     @staticmethod
     def _lfilter(b, a, x, z):
@@ -107,7 +118,7 @@ class KlonCentaur(Pedal):
                 ff2 = self._feedforward_network2(s)
                 summed = self._summing_stage(distorted, ff1, ff2)
                 toned = self._tone_control(summed)
-                out = toned * self.volume
+                out = toned * self.output
             np.clip(out, -1.0, 1.0, out=out)
             if retornar_bytes:
                 return (out * 32767).astype(np.int16).tobytes()
@@ -170,10 +181,10 @@ class KlonCentaur(Pedal):
             gain_db = -8.0 + (self.tom * 16.0)
         else:
             gain_db = (self.tom - 0.5) * 36.48
-        if abs(self.tom - self._last_tom) > 0.005 or self._tone_b is None:
+        if abs(self.treble - self._last_tom) > 0.005 or self._tone_b is None:
             self._tone_b, self._tone_a = self._highshelf_biquad_coeffs(
                 fc=fc, gain_db=gain_db, S=1.0)
-            self._last_tom = self.tom
+            self._last_tom = self.treble
         out, self._tone_z = self._lfilter(
             self._tone_b, self._tone_a, samples.astype(np.float64), self._tone_z)
         return (-out).astype(np.float32)

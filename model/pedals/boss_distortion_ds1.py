@@ -1,15 +1,18 @@
 import numpy as np
-from .pedal import Pedal
+from .pedal import Pedal, TipoPedal
 
 
 class BossDistortionDS1(Pedal):
 
     def __init__(self, sample_rate: int = 48000):
-        super().__init__("Distorção")
+        super().__init__("BOSS DS-1 Distortion")
         self.sample_rate = sample_rate
-        self.intensidade = 0.5
-        self.tom = 0.5
-        self.volume = 0.7
+        self.distortion = 0.5
+        self.tone = 0.5
+        self.level = 0.7
+        self.intensidade = self.distortion
+        self.tom = self.tone
+        self.volume = self.level
         self._tone_z1 = 0.0
         self._tone_z2 = 0.0
         self._pre_z1 = 0.0
@@ -17,15 +20,25 @@ class BossDistortionDS1(Pedal):
         self._tone_b0 = 0.0
         self._tone_b1 = 0.0
         self._tone_a1 = 0.0
+        self.tipo = TipoPedal.DISTORTION
 
     def set_intensidade(self, valor: float):
-        self.intensidade = float(np.clip(valor, 0.0, 1.0))
+        self.distortion = float(np.clip(valor, 0.0, 1.0))
+        self.intensidade = self.distortion
+
+    def set_tone(self, valor: float):
+        self.tone = float(np.clip(valor, 0.0, 1.0))
+        self.tom = self.tone
 
     def set_tom(self, valor: float):
-        self.tom = float(np.clip(valor, 0.0, 1.0))
+        self.set_tone(valor)
 
     def set_volume(self, valor: float):
-        self.volume = float(np.clip(valor, 0.0, 1.0))
+        self.level = float(np.clip(valor, 0.0, 1.0))
+        self.volume = self.level
+
+    def set_level(self, valor: float):
+        self.set_volume(valor)
 
     def processar(self, audio_data):
         if not self.ativo:
@@ -43,7 +56,7 @@ class BossDistortionDS1(Pedal):
             out = self._estagio_pre_ganho(samples)
             out = self._estagio_clipping(out)
             out = self._estagio_tone(out)
-            out = out * self.volume
+            out = out * self.level
             np.clip(out, -1.0, 1.0, out=out)
             if retornar_bytes:
                 return (out * 32767).astype(np.int16).tobytes()
@@ -61,7 +74,7 @@ class BossDistortionDS1(Pedal):
             z = z + alpha * (s - z)
             hp[i] = s - z
         self._pre_z1 = z
-        drive = 1.5 + self.intensidade * 45.0
+        drive = 1.5 + self.distortion * 45.0
         return hp * drive
 
     def _estagio_clipping(self, samples: np.ndarray) -> np.ndarray:
@@ -79,10 +92,10 @@ class BossDistortionDS1(Pedal):
         fc = 800.0
         w0 = 2.0 * np.pi * fc / self.sample_rate
         K = np.tan(w0 / 2.0)
-        if self.tom <= 0.5:
-            gain_db = (self.tom - 0.5) * 18.0
+        if self.tone <= 0.5:
+            gain_db = (self.tone - 0.5) * 18.0
         else:
-            gain_db = (self.tom - 0.5) * 28.0
+            gain_db = (self.tone - 0.5) * 28.0
         gain_lin = 10.0 ** (gain_db / 20.0)
         if gain_db >= 0:
             b0 = (1.0 + K * gain_lin) / (1.0 + K)

@@ -1,15 +1,17 @@
 import numpy as np
-from .pedal import Pedal
+from .pedal import Pedal, TipoPedal
 
 
 class BossRV6Reverb(Pedal):
     def __init__(self, sample_rate: int = 48000):
         super().__init__("Boss RV-6 Reverb")
         self.sample_rate = sample_rate
-        self.decay = 0.5
-        self.mix = 0.45
+        self.time = 0.5
+        self.level = 0.45
         self.tone = 0.6
         self.mode = "hall"
+        self.decay = self.time
+        self.mix = self.level
         self._comb_delays = [0.029, 0.037, 0.043, 0.051]
         self._comb_buffers = [
             np.zeros(int(sample_rate * d), dtype=np.float32) for d in self._comb_delays]
@@ -19,15 +21,31 @@ class BossRV6Reverb(Pedal):
             np.zeros(int(sample_rate * d), dtype=np.float32) for d in self._ap_delays]
         self._ap_idx = [0] * 3
         self._phase = 0.0
+        self.tipo = TipoPedal.REVERB
+        
 
-    def set_decay(self, valor: float):   self.decay = float(
-        np.clip(valor, 0.0, 1.0))
+    def set_decay(self, valor: float):
+        self.time = float(np.clip(valor, 0.0, 1.0))
+        self.decay = self.time
 
-    def set_mix(self, valor: float):     self.mix = float(
-        np.clip(valor, 0.0, 1.0))
+    def set_mix(self, valor: float):
+        self.mix = float(np.clip(valor, 0.0, 1.0))
+        self.level = self.mix
 
-    def set_tone(self, valor: float):    self.tone = float(
-        np.clip(valor, 0.0, 1.0))
+    def set_time(self, valor: float):
+        self.set_decay(valor)
+
+    def set_level(self, valor: float):
+        self.set_mix(valor)
+
+    def set_mode(self, mode: str):
+        allowed = {"room", "hall", "plate", "spring", "modulate", "shimmer", "dynamic", "delay"}
+        if mode not in allowed:
+            raise ValueError("mode deve ser um dos modos do RV-6")
+        self.mode = mode
+
+    def set_tone(self, valor: float):
+        self.tone = float(np.clip(valor, 0.0, 1.0))
 
     def processar(self, audio_data):
         if not self.ativo:
@@ -54,7 +72,7 @@ class BossRV6Reverb(Pedal):
     def _aplicar_rv6(self, samples: np.ndarray) -> np.ndarray:
         n = len(samples)
         out = np.empty(n, dtype=np.float32)
-        g = 0.65 + self.decay * 0.32
+        g = 0.65 + self.time * 0.32
         mod_depth = 0.0008 if self.mode == "modulate" else 0.0003
         for i in range(n):
             x = samples[i]
@@ -78,7 +96,7 @@ class BossRV6Reverb(Pedal):
             rev *= (0.5 + self.tone * 0.5)
             if self.mode == "shimmer":
                 rev += rev * 0.3 * np.sin(self._phase * 6)
-            out[i] = x * (1.0 - self.mix) + rev * self.mix
+            out[i] = x * (1.0 - self.level) + rev * self.level
             self._phase += 2 * np.pi * 0.8 / self.sample_rate
 
         return out

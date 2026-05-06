@@ -1,6 +1,6 @@
 import sounddevice as sd
 import numpy as np
-import threading
+import wave
 
 
 class Audio:
@@ -16,36 +16,51 @@ class Audio:
         self._channels = 1
         self.volume = 0.5
         self.amps = []
-
+        self.gravando = False
+        self._gravacao_pausada = False
+        self._gravacao_buffer = bytearray()
+        
     def iniciar_gravacao(self):
-        if self._thread_ativa:
+        if self.gravando:
             print("Gravação já está ativa.")
             return False
 
-        self._thread_ativa = True
-        self._thread = threading.Thread(target=self._iniciar_stream)
-        self._thread.start()
+        if not self._gravacao_pausada:
+            self._gravacao_buffer.clear()
+
+        self.gravando = True
+        self._gravacao_pausada = False
         return True
 
     def parar_gravacao(self):
-        if not self._thread_ativa:
+        if not self.gravando and not self._gravacao_pausada:
             print("Gravação não está ativa.")
             return False
-        # TODO: remover nome fixo
-        with open("gravacao.wav", "wb") as f:
-            f.write(self._stream.read(self._chunk)[0].tobytes())
-        self._thread_ativa = False
-        if self._thread.is_alive():
-            self._thread.join()
+
+        self.gravando = False
+        self._gravacao_pausada = False
+
+        if self._gravacao_buffer:
+            with wave.open("gravacao.wav", "wb") as arquivo:
+                arquivo.setnchannels(self._channels)
+                arquivo.setsampwidth(np.dtype(np.int16).itemsize)
+                arquivo.setframerate(self._sample_rate)
+                arquivo.writeframes(bytes(self._gravacao_buffer))
+
+        self._gravacao_buffer.clear()
         return True
 
     def pausar_gravacao(self):
-        if not self._thread_ativa:
+        if not self.gravando:
             print("Gravação não está ativa.")
             return False
 
-        self._thread_ativa = False
+        self.gravando = False
+        self._gravacao_pausada = True
         return True
+
+    def gravacao_ativa(self):
+        return self.gravando or self._gravacao_pausada
 
     def add_amp(self, amp):
         if amp not in self.amps:
@@ -120,7 +135,11 @@ class Audio:
 
             if audio_float.ndim == 1:
                 audio_float = audio_float.reshape(-1, 1)
+            audio_float = np.clip(audio_float * self.volume, -1.0, 1.0)
             outdata[:] = np.tile(audio_float, (1, outdata.shape[1]))
+
+            if self.gravando:
+                self._gravacao_buffer.extend((audio_float * 32767).astype(np.int16).tobytes())
 
         except Exception as e:
             print(f"Erro no callback: {e}")
@@ -136,13 +155,14 @@ class Audio:
         for i, dev in enumerate(dispositivos):
             api = hostapis[dev['hostapi']]['name']
             nome = dev['name']
-            print(
-                f"  [{i:2d}] {nome} | {api} | In:{dev['max_input_channels']} Out:{dev['max_output_channels']}")
+            nome = f"[{i:2d}] {nome} | {api} | In:{dev['max_input_channels']} Out:{dev['max_output_channels']}"
 
-            if "BEHRINGER" in nome.upper():
-                if dev['max_input_channels'] > 0:
+            
+            if dev['max_input_channels'] > 0:
+                if (i, nome) not in dicionario["entrada"]:
                     dicionario["entrada"].append((i, nome))
-                if dev['max_output_channels'] > 0:
+            if dev['max_output_channels'] > 0:
+                if (i, nome) not in dicionario["saida"]:
                     dicionario["saida"].append((i, nome))
 
         return dicionario

@@ -1,5 +1,5 @@
 import numpy as np
-from .pedal import Pedal
+from .pedal import Pedal, TipoPedal
 
 
 class NS2NoiseSuppressor(Pedal):
@@ -7,8 +7,10 @@ class NS2NoiseSuppressor(Pedal):
     def __init__(self, sample_rate: int = 48000):
         super().__init__("NS-2 Noise Suppressor")
         self.sample_rate = sample_rate
-        self.intensidade = 0.35
+        self.threshold = 0.35
         self.decay = 0.40
+        self.mode = "reduction"
+        self.intensidade = self.threshold
         self._env_rms = 0.0
         self._gate_gain = 0.0
         self._gate_open = False
@@ -18,12 +20,23 @@ class NS2NoiseSuppressor(Pedal):
         self._decay_coef = 0.0
         self._vca_coef_fast = 0.0
         self._vca_coef_slow = 0.0
+        self.tipo = TipoPedal.NOISE_SUPPRESSOR
 
     def set_intensidade(self, valor: float):
-        self.intensidade = float(np.clip(valor, 0.0, 1.0))
+        self.threshold = float(np.clip(valor, 0.0, 1.0))
+        self.intensidade = self.threshold
+
+    def set_threshold(self, valor: float):
+        self.set_intensidade(valor)
 
     def set_decay(self, valor: float):
         self.decay = float(np.clip(valor, 0.0, 1.0))
+
+    def set_mode(self, mode: str):
+        allowed = {"reduction", "mute"}
+        if mode not in allowed:
+            raise ValueError("mode deve ser 'reduction' ou 'mute'")
+        self.mode = mode
 
     def _aplicar_gate(self, samples: np.ndarray) -> np.ndarray:
         if abs(self.decay - self._last_decay) > 0.008:
@@ -38,7 +51,7 @@ class NS2NoiseSuppressor(Pedal):
             self._vca_coef_slow = 1.0 - \
                 np.exp(-1.0 / (self.sample_rate * release_ms * 0.65 / 1000.0))
             self._last_decay = self.decay
-        threshold = self.intensidade * 0.38 + 0.002
+        threshold = self.threshold * 0.38 + 0.002
         hysteresis = 0.09
         hold_samples = int(self.sample_rate * 0.018)
         limiar_abre = threshold * (1.0 + hysteresis)
@@ -69,7 +82,7 @@ class NS2NoiseSuppressor(Pedal):
             target = 1.0 if gate_open else 0.0
             vca_coef = self._vca_coef_fast if target > gate_gain else self._vca_coef_slow
             gate_gain += vca_coef * (target - gate_gain)
-            out[i] = x * gate_gain
+            out[i] = 0.0 if self.mode == "mute" and not gate_open else x * gate_gain
         self._env_rms = env
         self._gate_gain = gate_gain
         self._gate_open = gate_open

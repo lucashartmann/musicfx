@@ -11,7 +11,7 @@ InicioScreen Slider {
 
 InicioScreen #equipamentos {
     width: 100%;
-    height: 80%;
+    height: 90%;
     margin: 0 5 0 5;
     # background: #e62f2f;
     border: tall 50% #b89d9d;
@@ -75,6 +75,10 @@ InicioScreen #dispositivos {
         max-width: 30%;
         height: auto;
         margin: 0 3;
+        SelectOverlay {
+            width: auto;
+            height: auto;
+        }
         Static {
             width: auto;
             height: auto;
@@ -124,14 +128,15 @@ InicioScreen #volume_control {
         min-width: 0;
         min-height: 0;
         height: 100%;
-        width: 3%;
+        width: 5%;
         margin: 0 2 0 2;
         &:hover {
             background: #f75050;
         }
-        #parar_button {
+        
+    }
+    #parar_button {
             border: none;
             display: none;
-        }
     }
 }

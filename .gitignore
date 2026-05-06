@@ -2,3 +2,4 @@ __pycache__/
 .venv/
 musicfx.db
 data/
+gravacao.wav

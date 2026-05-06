@@ -9,4 +9,9 @@ ConfigScreen RichLog {
         margin: 5;
         overflow-x: hidden;
         overflow-y: auto;
+        margin-bottom: 2;
+}
+
+ConfigScreen Center {
+    margin-bottom: 5;
 }

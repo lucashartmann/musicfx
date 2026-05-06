@@ -2,11 +2,31 @@ Tabs {
     width: 100%;
     margin: 0 0 0 0;
     background: transparent;
-
     Container {
+        background: #231f1f;
         width: 100%;
-        height: 2;
-        margin: 0;
-        background: transparent;
+        height: 100%;
+        margin: 0 0 0 0;
+        content-align: center middle;
+        align: center middle;
+        text-align: center;
+        Static {
+            align: center middle;
+            text-align: center;
+            content-align: center middle;
+            height: auto;
+            width: 100%;
+        }
+        Horizontal {
+            align: center middle;
+            text-align: center;
+            content-align: center middle;
+            width: 100%;
+            height: auto;
+            Static {
+                height: auto;
+                width: auto;
+            }
+        }
     }
 }

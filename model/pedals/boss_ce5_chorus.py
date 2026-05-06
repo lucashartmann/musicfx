@@ -1,5 +1,5 @@
 import numpy as np
-from .pedal import Pedal
+from .pedal import Pedal, TipoPedal
 
 
 class BossCE5Chorus(Pedal):
@@ -8,12 +8,16 @@ class BossCE5Chorus(Pedal):
         self.sample_rate = sample_rate
         self.rate = 0.35
         self.depth = 0.45
-        self.mix = 0.55
-        self.high_eq = 0.5
-        self.low_eq = 0.5
+        self.level = 0.55
+        self.high_cut = 0.5
+        self.low_cut = 0.5
+        self.mix = self.level
+        self.high_eq = self.high_cut
+        self.low_eq = self.low_cut
         self._buffer = np.zeros(int(sample_rate * 0.06), dtype=np.float32)
         self._index = 0
         self._phase = 0.0
+        self.tipo = TipoPedal.CHORUS
 
     def set_rate(self, valor: float):   self.rate = float(
         np.clip(valor, 0.0, 1.0))
@@ -21,8 +25,20 @@ class BossCE5Chorus(Pedal):
     def set_depth(self, valor: float):  self.depth = float(
         np.clip(valor, 0.0, 1.0))
 
-    def set_mix(self, valor: float):    self.mix = float(
-        np.clip(valor, 0.0, 1.0))
+    def set_mix(self, valor: float):
+        self.mix = float(np.clip(valor, 0.0, 1.0))
+        self.level = self.mix
+
+    def set_level(self, valor: float):
+        self.set_mix(valor)
+
+    def set_high_cut(self, valor: float):
+        self.high_cut = float(np.clip(valor, 0.0, 1.0))
+        self.high_eq = self.high_cut
+
+    def set_low_cut(self, valor: float):
+        self.low_cut = float(np.clip(valor, 0.0, 1.0))
+        self.low_eq = self.low_cut
 
     def processar(self, audio_data):
         if not self.ativo:
@@ -60,9 +76,9 @@ class BossCE5Chorus(Pedal):
             read_idx = (idx - delay_samples) % len(buf)
             delayed = buf[int(read_idx)]
             dry = samples[i]
-            wet = delayed * (0.8 + self.high_eq * 0.4) * \
-                (0.9 + self.low_eq * 0.3)
-            out[i] = dry * (1.0 - self.mix) + wet * self.mix
+            wet = delayed * (0.8 + self.high_cut * 0.4) * \
+                (0.9 + self.low_cut * 0.3)
+            out[i] = dry * (1.0 - self.level) + wet * self.level
             buf[idx] = dry
             idx = (idx + 1) % len(buf)
             phase += 2 * np.pi * freq / self.sample_rate

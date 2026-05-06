@@ -1,5 +1,5 @@
 import numpy as np
-from .pedal import Pedal
+from .pedal import Pedal, TipoPedal
 
 
 class BossDD3Delay(Pedal):
@@ -9,10 +9,13 @@ class BossDD3Delay(Pedal):
         self.time = 0.4
         self.feedback = 0.35
         self.effect_level = 0.5
+        self.mode = "800ms"
+        self.hold = False
         self._max_delay = int(sample_rate * 1.0)
         self._delay_buffer = np.zeros(self._max_delay, dtype=np.float32)
         self._write_index = 0
         self._last_delay_samples = -1
+        self.tipo = TipoPedal.DELAY
 
     def set_time(self, valor: float):
         self.time = float(np.clip(valor, 0.0, 1.0))
@@ -22,6 +25,13 @@ class BossDD3Delay(Pedal):
 
     def set_effect_level(self, valor: float):
         self.effect_level = float(np.clip(valor, 0.0, 1.0))
+
+    def set_mode(self, mode: str):
+        allowed = {"50ms", "200ms", "800ms", "hold"}
+        if mode not in allowed:
+            raise ValueError("mode deve ser '50ms', '200ms', '800ms' ou 'hold'")
+        self.mode = mode
+        self.hold = mode == "hold"
 
     def processar(self, audio_data):
         if not self.ativo:
@@ -41,19 +51,27 @@ class BossDD3Delay(Pedal):
         return np.clip(out, -1.0, 1.0)
 
     def _aplicar_dd3(self, samples: np.ndarray) -> np.ndarray:
-        delay_ms = 50 + self.time * 750
+        if self.mode == "50ms":
+            delay_ms = 12.5 + self.time * 37.5
+        elif self.mode == "200ms":
+            delay_ms = 50 + self.time * 150
+        elif self.mode == "hold":
+            delay_ms = 800
+        else:
+            delay_ms = 200 + self.time * 600
         delay_samples = int(self.sample_rate * delay_ms / 1000.0)
         n = len(samples)
         out = np.empty(n, dtype=np.float32)
         buf = self._delay_buffer
         idx = self._write_index
+        feedback = 0.995 if self.hold else self.feedback
         for i in range(n):
             read_idx = (idx - delay_samples) % len(buf)
             delayed = buf[int(read_idx)]
             dry = samples[i]
             wet = delayed
             out[i] = dry + wet * self.effect_level
-            fb = dry + wet * self.feedback
+            fb = dry + wet * feedback
             buf[idx] = np.clip(fb * 0.96, -1.0, 1.0)
             idx = (idx + 1) % len(buf)
         self._write_index = idx
