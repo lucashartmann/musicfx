@@ -11,9 +11,62 @@ class Audio:
         self.pedais = []
         self._stream = None
         self._thread_ativa = False
-        self._chunk = 128  
+        self._chunk = 128
         self._sample_rate = 44100
         self._channels = 1
+        self.volume = 0.5
+        self.amps = []
+
+    def iniciar_gravacao(self):
+        if self._thread_ativa:
+            print("Gravação já está ativa.")
+            return False
+
+        self._thread_ativa = True
+        self._thread = threading.Thread(target=self._iniciar_stream)
+        self._thread.start()
+        return True
+
+    def parar_gravacao(self):
+        if not self._thread_ativa:
+            print("Gravação não está ativa.")
+            return False
+        # TODO: remover nome fixo
+        with open("gravacao.wav", "wb") as f:
+            f.write(self._stream.read(self._chunk)[0].tobytes())
+        self._thread_ativa = False
+        if self._thread.is_alive():
+            self._thread.join()
+        return True
+
+    def pausar_gravacao(self):
+        if not self._thread_ativa:
+            print("Gravação não está ativa.")
+            return False
+
+        self._thread_ativa = False
+        return True
+
+    def add_amp(self, amp):
+        if amp not in self.amps:
+            self.amps.append(amp)
+            return True
+        return False
+
+    def remove_amp(self, amp):
+        if amp in self.amps:
+            self.amps.remove(amp)
+            return True
+        return False
+
+    def get_amps(self):
+        return self.amps
+
+    def set_volume(self, valor: float):
+        self.volume = float(np.clip(valor, 0.0, 1.0))
+
+    def get_volume(self):
+        return self.volume
 
     def get_pedais(self):
         return self.pedais
@@ -47,28 +100,32 @@ class Audio:
         for pedal in self.pedais:
             if pedal.ativo:
                 resultado = pedal.processar(resultado)
+        for amp in self.amps:
+            if amp.ativo:
+                resultado = amp.processar(resultado)
         return resultado
-    
+
     def _callback(self, indata, outdata, frames, time, status):
         if status:
             print(f"Status: {status}")
 
         try:
             mono = indata[:, 0:1] if indata.ndim > 1 else indata.reshape(-1, 1)
-            
+
             raw_bytes = (mono * 32767).astype(np.int16).tobytes()
             processed_bytes = self._processar_audio(raw_bytes)
-            
-            audio_float = np.frombuffer(processed_bytes, dtype=np.int16).astype(np.float32) / 32767.0
-        
+
+            audio_float = np.frombuffer(
+                processed_bytes, dtype=np.int16).astype(np.float32) / 32767.0
+
             if audio_float.ndim == 1:
                 audio_float = audio_float.reshape(-1, 1)
             outdata[:] = np.tile(audio_float, (1, outdata.shape[1]))
-            
+
         except Exception as e:
             print(f"Erro no callback: {e}")
             outdata.fill(0)
-            
+
     def listar_dispositivos_audio(self):
         dispositivos = sd.query_devices()
         hostapis = sd.query_hostapis()
@@ -79,7 +136,8 @@ class Audio:
         for i, dev in enumerate(dispositivos):
             api = hostapis[dev['hostapi']]['name']
             nome = dev['name']
-            print(f"  [{i:2d}] {nome} | {api} | In:{dev['max_input_channels']} Out:{dev['max_output_channels']}")
+            print(
+                f"  [{i:2d}] {nome} | {api} | In:{dev['max_input_channels']} Out:{dev['max_output_channels']}")
 
             if "BEHRINGER" in nome.upper():
                 if dev['max_input_channels'] > 0:
@@ -98,14 +156,15 @@ class Audio:
             if self._stream is not None:
                 self.parar()
 
-            print(f"Iniciando stream: entrada [{self.entrada}] / saída [{self.saida}]")
+            print(
+                f"Iniciando stream: entrada [{self.entrada}] / saída [{self.saida}]")
 
             self._stream = sd.Stream(
                 device=(self.entrada, self.saida),
                 samplerate=self._sample_rate,
-                blocksize=self._chunk,        
+                blocksize=self._chunk,
                 dtype='float32',
-                channels=(1, 2),              
+                channels=(1, 2),
                 callback=self._callback,
                 latency='low'
             )

@@ -6,6 +6,6 @@ class Pedal:
 
     def set_intensidade(self, valor):
         self.intensidade = valor
-    
+
     def processar(self, audio_data):
         return audio_data

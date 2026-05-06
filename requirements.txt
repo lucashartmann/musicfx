@@ -1,5 +1,6 @@
 sounddevice
 pyaudio 
 textual
-textual-dev
+# textual-dev
 numpy
+scipy

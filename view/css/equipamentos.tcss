@@ -1,0 +1,3 @@
+EquipamentosScreen Grid {
+    grid-size: 4 5;
+}

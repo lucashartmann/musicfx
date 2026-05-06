@@ -1,7 +1,7 @@
-Tabs { 
+ConfigScreen Tabs { 
     dock: top; 
 }
-RichLog {
+ConfigScreen RichLog {
         height: 1fr;
         border: none;
         padding: 0 1;
