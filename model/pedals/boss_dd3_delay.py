@@ -14,7 +14,6 @@ class BossDD3Delay(Pedal):
         self._max_delay = int(sample_rate * 1.0)
         self._delay_buffer = np.zeros(self._max_delay, dtype=np.float32)
         self._write_index = 0
-        self._last_delay_samples = -1
         self.tipo = TipoPedal.DELAY
 
     def set_time(self, valor: float):
@@ -29,7 +28,8 @@ class BossDD3Delay(Pedal):
     def set_mode(self, mode: str):
         allowed = {"50ms", "200ms", "800ms", "hold"}
         if mode not in allowed:
-            raise ValueError("mode deve ser '50ms', '200ms', '800ms' ou 'hold'")
+            raise ValueError(
+                "mode deve ser '50ms', '200ms', '800ms' ou 'hold'")
         self.mode = mode
         self.hold = mode == "hold"
 
@@ -46,20 +46,22 @@ class BossDD3Delay(Pedal):
                 samples = samples[:, 0]
             retornar_bytes = False
         out = self._aplicar_dd3(samples)
+        out = np.clip(out, -1.0, 1.0)
         if retornar_bytes:
-            return (np.clip(out, -1.0, 1.0) * 32767).astype(np.int16).tobytes()
-        return np.clip(out, -1.0, 1.0)
+            return (out * 32767).astype(np.int16).tobytes()
+        return out
 
     def _aplicar_dd3(self, samples: np.ndarray) -> np.ndarray:
         if self.mode == "50ms":
             delay_ms = 12.5 + self.time * 37.5
         elif self.mode == "200ms":
-            delay_ms = 50 + self.time * 150
+            delay_ms = 50.0 + self.time * 150.0
         elif self.mode == "hold":
-            delay_ms = 800
+            delay_ms = 800.0
         else:
-            delay_ms = 200 + self.time * 600
+            delay_ms = 200.0 + self.time * 600.0
         delay_samples = int(self.sample_rate * delay_ms / 1000.0)
+        delay_samples = min(delay_samples, self._max_delay - 1)
         n = len(samples)
         out = np.empty(n, dtype=np.float32)
         buf = self._delay_buffer
@@ -69,10 +71,9 @@ class BossDD3Delay(Pedal):
             read_idx = (idx - delay_samples) % len(buf)
             delayed = buf[int(read_idx)]
             dry = samples[i]
-            wet = delayed
-            out[i] = dry + wet * self.effect_level
-            fb = dry + wet * feedback
-            buf[idx] = np.clip(fb * 0.96, -1.0, 1.0)
+            out[i] = dry + delayed * self.effect_level
+            fb = dry + delayed * feedback
+            buf[idx] = float(np.clip(fb * 0.96, -1.0, 1.0))
             idx = (idx + 1) % len(buf)
         self._write_index = idx
         return out

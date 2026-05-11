@@ -14,15 +14,18 @@ class BossRV6Reverb(Pedal):
         self.mix = self.level
         self._comb_delays = [0.029, 0.037, 0.043, 0.051]
         self._comb_buffers = [
-            np.zeros(int(sample_rate * d), dtype=np.float32) for d in self._comb_delays]
+            np.zeros(int(sample_rate * d), dtype=np.float32)
+            for d in self._comb_delays
+        ]
         self._comb_idx = [0] * 4
         self._ap_delays = [0.005, 0.007, 0.011]
         self._ap_buffers = [
-            np.zeros(int(sample_rate * d), dtype=np.float32) for d in self._ap_delays]
+            np.zeros(int(sample_rate * d), dtype=np.float32)
+            for d in self._ap_delays
+        ]
         self._ap_idx = [0] * 3
         self._phase = 0.0
         self.tipo = TipoPedal.REVERB
-        
 
     def set_decay(self, valor: float):
         self.time = float(np.clip(valor, 0.0, 1.0))
@@ -39,7 +42,8 @@ class BossRV6Reverb(Pedal):
         self.set_mix(valor)
 
     def set_mode(self, mode: str):
-        allowed = {"room", "hall", "plate", "spring", "modulate", "shimmer", "dynamic", "delay"}
+        allowed = {"room", "hall", "plate", "spring",
+                   "modulate", "shimmer", "dynamic", "delay"}
         if mode not in allowed:
             raise ValueError("mode deve ser um dos modos do RV-6")
         self.mode = mode
@@ -72,31 +76,32 @@ class BossRV6Reverb(Pedal):
     def _aplicar_rv6(self, samples: np.ndarray) -> np.ndarray:
         n = len(samples)
         out = np.empty(n, dtype=np.float32)
-        g = 0.65 + self.time * 0.32
+        g = 0.60 + self.time * 0.30
         mod_depth = 0.0008 if self.mode == "modulate" else 0.0003
         for i in range(n):
             x = samples[i]
             rev = 0.0
             for j in range(4):
                 idx = self._comb_idx[j]
-                rev += self._comb_buffers[j][idx]
-                fb = x + self._comb_buffers[j][idx] * g
-                self._comb_buffers[j][idx] = fb
+                delayed = self._comb_buffers[j][idx]
+                rev += delayed
+                fb = x * 0.25 + delayed * g
+                self._comb_buffers[j][idx] = float(np.clip(fb, -1.0, 1.0))
                 self._comb_idx[j] = (idx + 1) % len(self._comb_buffers[j])
+            rev *= 0.25
             for j in range(3):
                 idx = self._ap_idx[j]
-                delayed = self._ap_buffers[j][idx]
-                mod = np.sin(self._phase * (j+1)) * \
+                mod = np.sin(self._phase * (j + 1)) * \
                     mod_depth * self.sample_rate
                 read = (idx - int(mod)) % len(self._ap_buffers[j])
                 delayed = self._ap_buffers[j][int(read)]
-                self._ap_buffers[j][idx] = rev * 0.5 + delayed * (-0.5)
+                self._ap_buffers[j][idx] = float(
+                    np.clip(rev * 0.5 + delayed * (-0.5), -1.0, 1.0))
                 rev = delayed + rev * 0.5
                 self._ap_idx[j] = (idx + 1) % len(self._ap_buffers[j])
             rev *= (0.5 + self.tone * 0.5)
             if self.mode == "shimmer":
-                rev += rev * 0.3 * np.sin(self._phase * 6)
+                rev += rev * 0.25 * np.sin(self._phase * 6)
             out[i] = x * (1.0 - self.level) + rev * self.level
             self._phase += 2 * np.pi * 0.8 / self.sample_rate
-
         return out

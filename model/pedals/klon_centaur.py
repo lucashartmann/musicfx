@@ -14,11 +14,11 @@ class KlonCentaur(Pedal):
         self.tom = self.treble
         self.volume = self.output
         self._Vref = 1.0
-        self._buf_z = np.zeros(1)
-        self._mh_z = np.zeros(2)
-        self._ff1_z = np.zeros(1)
-        self._sum_z = np.zeros(1)
-        self._tone_z = np.zeros(2)
+        self._buf_z = None
+        self._mh_z = None
+        self._ff1_z = None
+        self._sum_z = None
+        self._tone_z = None
         self._last_tom = -1
         self._tone_b = None
         self._tone_a = None
@@ -45,7 +45,11 @@ class KlonCentaur(Pedal):
     @staticmethod
     def _lfilter(b, a, x, z):
         from scipy.signal import lfilter, lfilter_zi
-        y, z_new = lfilter(b, a, x, zi=z)
+        if z is None:
+            zi = lfilter_zi(b, a) * x[0] if len(x) > 0 else lfilter_zi(b, a)
+        else:
+            zi = z
+        y, z_new = lfilter(b, a, x, zi=zi)
         return y.astype(np.float32), z_new
 
     def _first_order_hp_coeffs(self, fc: float):
@@ -141,9 +145,9 @@ class KlonCentaur(Pedal):
         shaped, self._mh_z = self._lfilter(
             b, a, samples.astype(np.float64), self._mh_z)
         amplified = shaped * drive
-        Vf = 0.35
-        clipped = (Vf / self._Vref) * np.tanh(amplified * self._Vref / Vf)
-        return clipped.astype(np.float32)
+        Vf = 0.30
+        clipped = Vf * np.tanh(amplified / Vf)
+        return np.clip(clipped, -1.0, 1.0).astype(np.float32)
 
     def _feedforward_network1(self, samples: np.ndarray) -> np.ndarray:
         fc = 1.0 / (2.0 * np.pi * 1500.0 * 390e-9)
@@ -161,19 +165,20 @@ class KlonCentaur(Pedal):
                        ff1: np.ndarray,
                        ff2: np.ndarray) -> np.ndarray:
         mixed = distorted + ff1 + ff2
+        mixed = np.clip(mixed, -1.0, 1.0)
         fc = 1.0 / (2.0 * np.pi * 392e3 * 820e-12)
         b, a = self._first_order_lp_coeffs(fc)
         filtered, self._sum_z = self._lfilter(
             b, a, mixed.astype(np.float64), self._sum_z)
-        Av = - (392e3 / 47e3)
-        amplified = filtered * Av
-        rail_pos = 1.8
-        rail_neg = -0.96
+        Av_norm = 392e3 / 47e3  # 8.34
+        amplified = filtered * (Av_norm / 10.0)
+        rail_pos = 0.85
+        rail_neg = -0.75
         center = (rail_pos + rail_neg) / 2.0
         span = (rail_pos - rail_neg) / 2.0
-        x_norm = (amplified - center) / span
-        clipped = np.tanh(x_norm * 1.1) * span + center
-        return clipped.astype(np.float32)
+        x_norm = (amplified - center) / max(span, 1e-6)
+        clipped = np.tanh(x_norm * 1.2) * span + center
+        return (-clipped).astype(np.float32)
 
     def _tone_control(self, samples: np.ndarray) -> np.ndarray:
         fc = 408.0
@@ -187,4 +192,4 @@ class KlonCentaur(Pedal):
             self._last_tom = self.treble
         out, self._tone_z = self._lfilter(
             self._tone_b, self._tone_a, samples.astype(np.float64), self._tone_z)
-        return (-out).astype(np.float32)
+        return np.clip(out, -1.0, 1.0).astype(np.float32)
