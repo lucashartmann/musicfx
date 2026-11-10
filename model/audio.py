@@ -110,10 +110,17 @@ class Audio:
             return True
         return False
 
+    def get_sample_rate(self):
+        return self._sample_rate
+
     def _processar_audio(self, input_data):
+        # O sinal circula em float entre os pedais: sem quantizar para int16
+        # nem clipar em +-1 a cada pedal (o headroom de cada circuito é
+        # modelado dentro do próprio pedal). Pedais com bypass bufferizado
+        # (ex.: Klon) processam mesmo desligados.
         resultado = input_data
         for pedal in self.pedais:
-            if pedal.ativo:
+            if pedal.ativo or getattr(pedal, "bypass_bufferizado", False):
                 resultado = pedal.processar(resultado)
         for amp in self.amps:
             if amp.ativo:
@@ -125,16 +132,11 @@ class Audio:
             print(f"Status: {status}")
 
         try:
-            mono = indata[:, 0:1] if indata.ndim > 1 else indata.reshape(-1, 1)
+            mono = indata[:, 0] if indata.ndim > 1 else indata.reshape(-1)
 
-            raw_bytes = (mono * 32767).astype(np.int16).tobytes()
-            processed_bytes = self._processar_audio(raw_bytes)
+            processado = self._processar_audio(mono.astype(np.float32))
 
-            audio_float = np.frombuffer(
-                processed_bytes, dtype=np.int16).astype(np.float32) / 32767.0
-
-            if audio_float.ndim == 1:
-                audio_float = audio_float.reshape(-1, 1)
+            audio_float = np.asarray(processado, dtype=np.float32).reshape(-1, 1)
             audio_float = np.clip(audio_float * self.volume, -1.0, 1.0)
             outdata[:] = np.tile(audio_float, (1, outdata.shape[1]))
 

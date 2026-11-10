@@ -1,5 +1,9 @@
 from enum import Enum
 
+import numpy as np
+
+from .dsp import para_float, float_para_bytes
+
 
 class TipoPedal(Enum):
     DISTORTION = "Distortion"
@@ -14,8 +18,13 @@ class TipoPedal(Enum):
 
 
 class Pedal:
-    def __init__(self, nome):
+    # Pedais com bypass bufferizado (ex.: Klon) processam o buffer de entrada
+    # mesmo desligados; os demais são true bypass / bypass eletrônico limpo.
+    bypass_bufferizado = False
+
+    def __init__(self, nome, sample_rate: int = 44100):
         self.nome = nome
+        self.sample_rate = sample_rate
         self.ativo = False
         self.intensidade = 0.5
         self.tipo = None
@@ -48,4 +57,20 @@ class Pedal:
         self.intensidade = valor
 
     def processar(self, audio_data):
-        return audio_data
+        """Aceita bytes int16 ou array float e devolve no mesmo formato."""
+        if not self.ativo and not self.bypass_bufferizado:
+            return audio_data
+        samples, era_bytes = para_float(audio_data)
+        if len(samples) == 0:
+            return audio_data
+        try:
+            out = np.asarray(self._processar(samples.astype(np.float64)), dtype=np.float32)
+        except Exception as e:
+            print(f"Erro em {self.__class__.__name__}.processar: {e}")
+            return audio_data
+        if era_bytes:
+            return float_para_bytes(out)
+        return out
+
+    def _processar(self, samples: np.ndarray) -> np.ndarray:
+        return samples

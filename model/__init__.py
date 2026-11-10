@@ -6,14 +6,15 @@ from database import banco
 
 class Init:
     audio = audio.Audio()
-    boss_distortion_ds12 = boss_distortion_ds1.BossDistortionDS1()
-    boss_ns2_noise_suppressor = boss_ns2_noise_suppressor.NS2NoiseSuppressor()
-    klon_centaur = klon_centaur.KlonCentaur()
-    boss_ce5_chorus = boss_ce5_chorus.BossCE5Chorus()
-    boss_dd3_delay = boss_dd3_delay.BossDD3Delay()
-    boss_rv6_reverb = boss_rv6_reverb.BossRV6Reverb()
-    dunlop_cry_baby_gcb95 = dunlop_cry_baby_gcb95.DunlopCryBabyGCB95()
-    marshall_plexi_super_lead_1959 = marshall_plexi_super_lead_1959.MarshallPlexiSuperLead1959()
+    sr = audio.get_sample_rate()
+    boss_distortion_ds12 = boss_distortion_ds1.BossDistortionDS1(sr)
+    boss_ns2_noise_suppressor = boss_ns2_noise_suppressor.NS2NoiseSuppressor(sr)
+    klon_centaur = klon_centaur.KlonCentaur(sr)
+    boss_ce5_chorus = boss_ce5_chorus.BossCE5Chorus(sr)
+    boss_dd3_delay = boss_dd3_delay.BossDD3Delay(sr)
+    boss_rv6_reverb = boss_rv6_reverb.BossRV6Reverb(sr)
+    dunlop_cry_baby_gcb95 = dunlop_cry_baby_gcb95.DunlopCryBabyGCB95(sr)
+    marshall_plexi_super_lead_1959 = marshall_plexi_super_lead_1959.MarshallPlexiSuperLead1959(sr)
     banco = banco.Banco()
 
     
